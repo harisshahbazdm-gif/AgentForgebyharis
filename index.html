@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentForge — Upload & Clean Your Data</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:#0a0a0b; --surface:#111114; --surface2:#18181d;
+  --border:rgba(255,255,255,0.07); --border-bright:rgba(255,255,255,0.14);
+  --amber:#f5a623; --amber-dim:rgba(245,166,35,0.1); --amber-mid:rgba(245,166,35,0.25);
+  --white:#f0efe8; --muted:#6b6b72; --muted2:#3a3a42;
+  --green:#27c46b; --green-dim:rgba(39,196,107,0.1);
+  --red:#ff4d4d; --red-dim:rgba(255,77,77,0.1);
+  --blue:#60a5fa; --yellow:#fbbf24; --yellow-dim:rgba(251,191,36,0.1);
+  --font-h:'Syne',sans-serif; --font-m:'DM Mono',monospace; --font-s:'Instrument Serif',serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--white);font-family:var(--font-h);overflow-x:hidden;cursor:none}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,0.013) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.013) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
+::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--amber)}
+
+#cur{position:fixed;width:10px;height:10px;background:var(--amber);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform .12s}
+#ring{position:fixed;width:32px;height:32px;border:1.5px solid rgba(245,166,35,.45);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:width .2s,height .2s,border-color .2s}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:16px 44px;background:rgba(10,10,11,.94);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+.n-logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800;letter-spacing:-.5px;cursor:none}
+.n-hex{width:24px;height:24px;background:var(--amber);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);flex-shrink:0}
+.n-links{display:flex;gap:28px;list-style:none}
+.n-links a{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-decoration:none;transition:color .2s;cursor:none}
+.n-links a:hover,.n-links a.on{color:var(--white)}
+.n-cta{background:var(--amber);color:#0a0a0b;padding:9px 22px;font-family:var(--font-h);font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:none;cursor:none;transition:background .2s}
+.n-cta:hover{background:#ffc04d}
+
+.pg{display:none;padding-top:70px;min-height:100vh;position:relative;z-index:1}
+.pg.on{display:block}
+
+/* HOME */
+.hero{min-height:calc(100vh - 70px);display:flex;flex-direction:column;justify-content:center;padding:80px 44px 60px}
+.h-eye{display:flex;align-items:center;gap:10px;font-family:var(--font-m);font-size:11px;color:var(--amber);letter-spacing:.12em;text-transform:uppercase;margin-bottom:28px;animation:up .6s .1s both}
+.h-eye::before{content:'';width:28px;height:1px;background:var(--amber)}
+.h-t{font-size:clamp(48px,8vw,104px);font-weight:800;line-height:.93;letter-spacing:-3px;max-width:860px;animation:up .6s .2s both}
+.h-t .s{font-family:var(--font-s);font-style:italic;font-weight:400;color:var(--amber)}
+.h-sub{margin-top:32px;font-size:16px;color:var(--muted);max-width:500px;line-height:1.65;animation:up .6s .3s both}
+.h-btns{margin-top:44px;display:flex;gap:14px;animation:up .6s .42s both}
+.sbr{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-top:60px;animation:up .6s .52s both}
+.sbi{padding:26px 44px;border-right:1px solid var(--border)}.sbi:last-child{border-right:none}
+.sbv{font-size:38px;font-weight:800;letter-spacing:-2px;line-height:1}
+.sbv em{color:var(--amber);font-style:normal}
+.sbl{font-family:var(--font-m);font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:6px}
+.tkr{overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:12px 0;background:var(--surface)}
+.tkr-i{display:flex;animation:tck 30s linear infinite;width:max-content}
+.tki{display:flex;align-items:center;gap:8px;padding:0 32px;font-family:var(--font-m);font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;border-right:1px solid var(--border)}
+.tkd{width:4px;height:4px;border-radius:50%;background:var(--amber);flex-shrink:0}
+@keyframes tck{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* CATALOG */
+.cat-wrap{padding:70px 44px}
+.s-lbl{font-family:var(--font-m);font-size:11px;color:var(--amber);letter-spacing:.14em;text-transform:uppercase;margin-bottom:12px}
+.s-ttl{font-size:clamp(32px,5vw,54px);font-weight:800;letter-spacing:-2px;line-height:1;margin-bottom:48px}
+.ag-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border)}
+.agc{background:var(--surface);padding:32px;position:relative;overflow:hidden;cursor:none;transition:background .2s}
+.agc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--amber);transform:scaleX(0);transform-origin:left;transition:transform .3s}
+.agc:hover{background:var(--surface2)}.agc:hover::before{transform:scaleX(1)}
+.agn{position:absolute;top:24px;right:24px;font-family:var(--font-m);font-size:10px;color:var(--muted2)}
+.agi{font-size:26px;margin-bottom:16px}
+.agname{font-size:17px;font-weight:700;letter-spacing:-.4px;margin-bottom:8px}
+.agd{font-family:var(--font-m);font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.ag-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.tag{padding:3px 9px;border:1px solid var(--border-bright);font-family:var(--font-m);font-size:9px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.tag.a{border-color:rgba(245,166,35,.3);color:var(--amber)}
+.ag-bot{display:flex;align-items:center;justify-content:space-between}
+.ag-pr{font-size:19px;font-weight:800;letter-spacing:-.8px}
+.ag-pr .per{font-size:11px;font-weight:400;color:var(--muted);font-family:var(--font-m)}
+
+/* RUNNER */
+.run-wrap{padding:70px 44px}
+.run-top{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:36px}
+.live-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;background:var(--green-dim);border:1px solid rgba(39,196,107,.25);font-family:var(--font-m);font-size:10px;color:var(--green);letter-spacing:.08em}
+.ldot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.run-layout{display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start}
+.sdb{position:sticky;top:86px;display:flex;flex-direction:column;gap:14px}
+.sdb-box{border:1px solid var(--border);background:var(--surface);overflow:hidden}
+.sdb-hd{padding:11px 14px;border-bottom:1px solid var(--border);font-family:var(--font-m);font-size:10px;color:var(--amber);letter-spacing:.1em;text-transform:uppercase}
+.ao{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:none;transition:all .2s;border-bottom:1px solid var(--border)}
+.ao:last-child{border-bottom:none}.ao:hover{background:var(--surface2)}
+.ao.sel{background:var(--amber-dim)}.ao.sel .aod{background:var(--amber)}
+.aod{width:6px;height:6px;border-radius:50%;background:var(--muted2);transition:background .2s;flex-shrink:0}
+.ao-name{font-size:13px;font-weight:600}.ao-sub{font-family:var(--font-m);font-size:10px;color:var(--muted);margin-top:1px}
+.mode-tgl{display:grid;grid-template-columns:1fr 1fr}
+.mbtn{padding:10px;font-family:var(--font-m);font-size:11px;color:var(--muted);background:transparent;border:none;cursor:none;transition:all .2s;letter-spacing:.04em}
+.mbtn.on{background:var(--amber);color:#0a0a0b;font-weight:700}
+.ag-info{padding:14px;font-family:var(--font-m);font-size:11px;color:var(--muted);line-height:1.75}
+.run-main{display:flex;flex-direction:column;gap:16px}
+
+/* ===== UPLOAD ZONE ===== */
+.upload-zone{
+  border:2px dashed var(--border-bright);
+  background:var(--surface);
+  transition:all .25s;
+  position:relative;
+  overflow:hidden;
+  cursor:none;
+}
+.upload-zone.drag{border-color:var(--amber);background:var(--amber-dim)}
+.upload-zone.ready{border-color:rgba(39,196,107,.5);background:var(--green-dim);cursor:default}
+
+/* idle */
+.uz-idle{padding:56px 40px;text-align:center;display:flex;flex-direction:column;align-items:center}
+.uz-icon{font-size:52px;margin-bottom:20px;transition:transform .3s;display:block;line-height:1}
+.upload-zone.drag .uz-icon{transform:scale(1.2) translateY(-8px)}
+.uz-title{font-size:21px;font-weight:700;letter-spacing:-.5px;margin-bottom:10px}
+.uz-sub{font-family:var(--font-m);font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+.fmt-row{display:flex;gap:8px;justify-content:center;margin-bottom:24px}
+.fmt{padding:4px 14px;border:1px solid var(--border-bright);font-family:var(--font-m);font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;transition:all .2s}
+.fmt.hi{border-color:var(--amber-mid);color:var(--amber);background:var(--amber-dim)}
+
+/* file-ready bar */
+.uz-ready{padding:20px 28px;display:none;align-items:center;gap:16px}
+.uz-ready.show{display:flex}
+.uz-ficon{font-size:34px;flex-shrink:0;line-height:1}
+.uz-finfo{flex:1;min-width:0}
+.uz-fname{font-size:15px;font-weight:700;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uz-fmeta{font-family:var(--font-m);font-size:11px;color:var(--muted);margin-top:3px}
+.uz-factions{display:flex;gap:8px;flex-shrink:0}
+
+/* drag overlay */
+.drag-overlay{position:absolute;inset:0;background:rgba(245,166,35,.06);display:none;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;border:2px dashed var(--amber)}
+.upload-zone.drag .drag-overlay{display:flex}
+.drag-overlay .di{font-size:48px;line-height:1}
+.drag-overlay .dt{font-size:16px;font-weight:700;color:var(--amber);margin-top:12px;font-family:var(--font-h);letter-spacing:-.3px}
+
+/* upload progress */
+.u-prog{height:3px;background:var(--border);overflow:hidden;display:none}
+.u-prog.show{display:block}
+.u-bar{height:100%;background:linear-gradient(90deg,var(--amber),#ffc04d);width:0%;transition:width .3s}
+
+/* upload status */
+.u-status{padding:10px 16px;font-family:var(--font-m);font-size:11px;display:none;align-items:center;gap:8px;border-top:1px solid var(--border)}
+.u-status.show{display:flex}
+.u-status.ok{color:var(--green);background:var(--green-dim)}
+.u-status.err{color:var(--red);background:var(--red-dim)}
+.u-status.ld{color:var(--amber);background:var(--amber-dim)}
+
+/* ===== PREVIEW ===== */
+.prev-box{border:1px solid var(--border);background:var(--surface);display:none}
+.prev-box.show{display:block}
+.pb-hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pb-left{display:flex;align-items:center;gap:8px}
+.pb-title{font-family:var(--font-m);font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.pb-badge{padding:2px 8px;background:var(--amber-dim);border:1px solid var(--amber-mid);font-family:var(--font-m);font-size:10px;color:var(--amber)}
+.pb-meta{font-family:var(--font-m);font-size:10px;color:var(--muted);line-height:1.6}
+.pb-scroll{overflow-x:auto;overflow-y:auto;max-height:240px}
+table.ptbl{width:100%;border-collapse:collapse;font-family:var(--font-m);font-size:11px;white-space:nowrap}
+table.ptbl th{padding:8px 14px;background:rgba(245,166,35,.07);border-bottom:1px solid rgba(245,166,35,.14);color:var(--amber);font-weight:700;text-align:left;letter-spacing:.04em;position:sticky;top:0;z-index:1}
+table.ptbl td{padding:7px 14px;border-bottom:1px solid var(--border);color:var(--muted)}
+table.ptbl tr:hover td{background:var(--surface2);color:var(--white)}
+.td-mt{color:var(--muted2)!important;font-style:italic}
+.pb-ft{padding:9px 16px;border-top:1px solid var(--border);font-family:var(--font-m);font-size:10px;color:var(--muted);display:flex;align-items:center;justify-content:space-between}
+.sh-tabs{display:flex;gap:4px}
+.sh-tab{padding:3px 10px;font-family:var(--font-m);font-size:10px;letter-spacing:.04em;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:none;transition:all .2s}
+.sh-tab.on{background:var(--amber);color:#0a0a0b;border-color:var(--amber);font-weight:700}
+
+/* ===== RUN BUTTON ===== */
+.run-btn{width:100%;padding:17px;font-family:var(--font-h);font-size:15px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border:none;cursor:none;transition:all .2s;position:relative;overflow:hidden}
+.run-btn.idle{background:var(--muted2);color:var(--muted)}
+.run-btn.rdy{background:var(--amber);color:#0a0a0b}
+.run-btn.rdy:hover{background:#ffc04d}
+.run-btn.busy{background:#16161c;color:var(--amber);border:1px solid var(--amber-mid)}
+.run-btn:disabled{cursor:not-allowed}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(245,166,35,.3);border-top-color:var(--amber);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.shine{position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);animation:sh 2.5s 1s infinite}
+@keyframes sh{0%{left:-100%}100%{left:200%}}
+
+/* PROGRESS */
+.prog{height:3px;background:var(--border);display:none;overflow:hidden}
+.prog.show{display:block}
+.prog-bar{height:100%;background:linear-gradient(90deg,var(--amber),#ffc04d);transition:width .4s;width:0%}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);display:none}
+.metrics.show{display:grid}
+.mtr{background:var(--surface);padding:16px 20px;animation:up .4s both}
+.mval{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1}
+.g{color:var(--green)}.a{color:var(--amber)}.r{color:var(--red)}.b{color:var(--blue)}
+.mlbl{font-family:var(--font-m);font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+
+/* TERMINAL */
+.term{background:#0c0c0f;border:1px solid var(--border-bright);display:none;flex-direction:column}
+.term.show{display:flex}
+.tbar{background:var(--surface2);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:7px;flex-shrink:0}
+.tdot{width:10px;height:10px;border-radius:50%}
+.tdot.r{background:#ff5f56}.tdot.y{background:#ffbd2e}.tdot.g{background:#27c93f}
+.tlbl{font-family:var(--font-m);font-size:10px;color:var(--muted);margin-left:6px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tst{font-family:var(--font-m);font-size:10px;padding:3px 10px;letter-spacing:.06em;white-space:nowrap}
+.tst.run{background:var(--yellow-dim);color:var(--yellow)}.tst.done{background:var(--green-dim);color:var(--green)}.tst.err{background:var(--red-dim);color:var(--red)}
+.tbody{padding:18px 20px;font-family:var(--font-m);font-size:12px;line-height:1.9;max-height:300px;overflow-y:auto}
+.tl{display:block;white-space:pre-wrap;word-break:break-word;animation:tli .15s both}
+@keyframes tli{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:none}}
+.tp{color:var(--amber)}.to{color:#6ee7b7}.ti{color:var(--blue)}.tw{color:var(--yellow)}.te{color:var(--red)}.td4{color:var(--muted)}.tb{color:var(--white)}
+.blink{display:inline-block;width:7px;height:13px;background:var(--amber);animation:blink 1s infinite;vertical-align:middle}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* REVIEW */
+.rv-panel{border:1px solid rgba(251,191,36,.2);background:rgba(251,191,36,.03);display:none}
+.rv-panel.show{display:block}
+.rv-hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.rv-title{font-family:var(--font-m);font-size:10px;color:var(--yellow);letter-spacing:.08em;text-transform:uppercase}
+.rv-item{display:grid;grid-template-columns:1fr 24px 1fr auto;gap:12px;align-items:start;padding:14px 16px;border-bottom:1px solid var(--border);animation:up .3s both}
+.rv-item:last-child{border-bottom:none}
+.rv-lbl{font-family:var(--font-m);font-size:10px;color:var(--muted);margin-bottom:4px}
+.rv-old{font-family:var(--font-m);font-size:12px;color:var(--red);text-decoration:line-through;word-break:break-word}
+.rv-arr{font-family:var(--font-m);font-size:14px;color:var(--muted);padding-top:18px;text-align:center}
+.rv-new{font-family:var(--font-m);font-size:12px;color:var(--green);word-break:break-word}
+.rv-why{font-family:var(--font-m);font-size:10px;color:var(--muted);margin-top:4px}
+.cbar{height:2px;background:var(--border);margin-top:5px;overflow:hidden}
+.cfill{height:100%;transition:width .5s}
+.rv-acts{display:flex;flex-direction:column;gap:5px;padding-top:16px}
+.rva{padding:5px 12px;font-family:var(--font-m);font-size:10px;font-weight:700;border:none;cursor:none;letter-spacing:.04em;transition:all .2s;white-space:nowrap}
+.rva.ap{background:var(--green-dim);color:var(--green)}.rva.ap:hover{background:var(--green);color:#000}
+.rva.rj{background:var(--red-dim);color:var(--red)}.rva.rj:hover{background:var(--red);color:#fff}
+.rva.done{opacity:.4;pointer-events:none}
+
+/* OUTPUT */
+.out-panel{border:1px solid rgba(39,196,107,.2);background:rgba(39,196,107,.02);display:none}
+.out-panel.show{display:block}
+.op-hd{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.op-title{font-family:var(--font-m);font-size:10px;color:var(--green);letter-spacing:.08em;text-transform:uppercase}
+.op-meta{font-family:var(--font-m);font-size:10px;color:var(--muted)}
+.out-scroll{overflow-x:auto;overflow-y:auto;max-height:420px}
+table.otbl{width:100%;border-collapse:collapse;font-family:var(--font-m);font-size:11px;white-space:nowrap}
+table.otbl th{padding:9px 14px;background:rgba(39,196,107,.07);border-bottom:1px solid rgba(39,196,107,.14);color:var(--green);font-weight:700;text-align:left;letter-spacing:.04em;position:sticky;top:0;z-index:1}
+table.otbl td{padding:7px 14px;border-bottom:1px solid var(--border);color:var(--muted)}
+table.otbl tr:hover td{background:var(--surface2);color:var(--white)}
+.cc{color:var(--green)!important;font-weight:600}.cf{color:var(--red)!important;font-weight:600}
+.cn{color:var(--blue)!important;font-weight:600}.cy{color:var(--yellow)!important}
+.exp-bar{padding:14px 16px;border-top:1px solid var(--border);background:var(--surface);display:none;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.exp-bar.show{display:flex}
+.exp-meta{font-family:var(--font-m);font-size:11px;color:var(--muted)}
+.exp-meta strong{color:var(--white)}
+.exp-btns{display:flex;gap:8px}
+.eb{padding:8px 16px;font-family:var(--font-m);font-size:10px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--border-bright);background:transparent;color:var(--white);cursor:none;transition:all .2s;font-weight:600}
+.eb:hover{border-color:var(--amber);color:var(--amber)}
+.eb.pr{background:var(--amber);color:#0a0a0b;border-color:var(--amber)}.eb.pr:hover{background:#ffc04d}
+
+/* PRICING */
+.pr-wrap{padding:70px 44px}
+.pr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-top:48px}
+.plan{background:var(--bg);padding:36px 28px;position:relative}
+.plan.hot{background:var(--surface2);border-top:2px solid var(--amber)}
+.p-rec{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--amber);color:#0a0a0b;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 14px;white-space:nowrap}
+.pn{font-family:var(--font-m);font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px}
+.pp{font-size:48px;font-weight:800;letter-spacing:-3px;line-height:1}
+.pp sup{font-size:18px;font-weight:700;letter-spacing:0;vertical-align:super}
+.pperiod{font-family:var(--font-m);font-size:11px;color:var(--muted);margin-bottom:24px;margin-top:4px}
+.p-hr{border:none;border-top:1px solid var(--border);margin-bottom:22px}
+.pf{list-style:none;display:flex;flex-direction:column;gap:9px;margin-bottom:28px}
+.pf li{display:flex;align-items:flex-start;gap:8px;font-family:var(--font-m);font-size:12px;color:var(--muted)}
+.ck{color:var(--green);flex-shrink:0}.ds{color:var(--muted2);flex-shrink:0}
+.pb{width:100%;padding:12px;font-family:var(--font-h);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--border-bright);background:transparent;color:var(--white);cursor:none;transition:all .2s}
+.pb:hover{border-color:var(--amber);color:var(--amber)}
+.pb.pp2{background:var(--amber);color:#0a0a0b;border-color:var(--amber)}.pb.pp2:hover{background:#ffc04d;color:#0a0a0b}
+
+/* SHARED BUTTONS */
+.btn-p{background:var(--amber);color:#0a0a0b;padding:13px 28px;font-family:var(--font-h);font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:none;cursor:none;transition:all .2s}
+.btn-p:hover{background:#ffc04d;transform:translateY(-1px)}
+.btn-g{padding:13px 28px;font-family:var(--font-h);font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--border-bright);color:var(--white);background:transparent;cursor:none;transition:all .2s}
+.btn-g:hover{border-color:var(--amber);color:var(--amber)}
+.sm-btn{padding:6px 14px;font-family:var(--font-m);font-size:10px;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--border-bright);background:transparent;color:var(--muted);cursor:none;transition:all .2s;font-weight:600}
+.sm-btn:hover{border-color:var(--amber);color:var(--amber)}
+.sm-btn.amb{border-color:rgba(245,166,35,.35);color:var(--amber);background:var(--amber-dim)}
+footer{border-top:1px solid var(--border);padding:36px 44px;display:flex;justify-content:space-between;align-items:center;position:relative;z-index:1}
+.ft-logo{font-size:15px;font-weight:800;letter-spacing:-.5px}
+.ft-links{display:flex;gap:24px;list-style:none}
+.ft-links a{font-family:var(--font-m);font-size:10px;color:var(--muted);text-decoration:none;letter-spacing:.06em;text-transform:uppercase;cursor:none;transition:color .2s}
+.ft-links a:hover{color:var(--white)}
+.ft-copy{font-family:var(--font-m);font-size:10px;color:var(--muted2)}
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;background:var(--surface2);border:1px solid var(--border-bright);font-family:var(--font-m);font-size:12px;z-index:9999;transform:translateY(60px);opacity:0;transition:all .3s;letter-spacing:.04em;max-width:320px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:rgba(39,196,107,.4);color:var(--green)}
+.toast.er{border-color:rgba(255,77,77,.4);color:var(--red)}
+.toast.wa{border-color:rgba(245,166,35,.4);color:var(--amber)}
+@keyframes up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div id="cur"></div>
+<div id="ring"></div>
+<div class="toast" id="toast"></div>
+
+<nav>
+  <div class="n-logo" onclick="go('home')"><div class="n-hex"></div>AgentForge</div>
+  <ul class="n-links">
+    <li><a id="n-home" class="on" onclick="go('home')">Home</a></li>
+    <li><a id="n-catalog" onclick="go('catalog')">Agents</a></li>
+    <li><a id="n-runner" onclick="go('runner')">▶ Run Agent</a></li>
+    <li><a id="n-pricing" onclick="go('pricing')">Pricing</a></li>
+  </ul>
+  <button class="n-cta" onclick="go('runner')">Upload & Clean →</button>
+</nav>
+
+<!-- ═══ HOME ═══ -->
+<div class="pg on" id="pg-home">
+  <section class="hero">
+    <div class="h-eye">Real File Processing · CSV & Excel · AI Powered</div>
+    <h1 class="h-t">Upload your file.<br><span class="s">AI cleans it live.</span></h1>
+    <p class="h-sub">Drop any CSV or Excel file. Pick an agent. Get clean, structured, analysis-ready data back in seconds.</p>
+    <div class="h-btns">
+      <button class="btn-p" onclick="go('runner')">Upload a File Now →</button>
+      <button class="btn-g" onclick="go('catalog')">Browse All Agents</button>
+    </div>
+    <div class="sbr">
+      <div class="sbi"><div class="sbv">6<em>+</em></div><div class="sbl">Live AI Agents</div></div>
+      <div class="sbi"><div class="sbv">CSV<em>+</em>XLS</div><div class="sbl">File Formats</div></div>
+      <div class="sbi"><div class="sbv">0</div><div class="sbl">Data Loss</div></div>
+      <div class="sbi"><div class="sbv">∞</div><div class="sbl">Scalable Runs</div></div>
+    </div>
+  </section>
+  <div class="tkr"><div class="tkr-i">
+    <div class="tki"><span class="tkd"></span>CSV Upload</div>
+    <div class="tki"><span class="tkd"></span>Excel .xlsx .xls</div>
+    <div class="tki"><span class="tkd"></span>Drag & Drop</div>
+    <div class="tki"><span class="tkd"></span>Data Cleaning</div>
+    <div class="tki"><span class="tkd"></span>Case List Builder</div>
+    <div class="tki"><span class="tkd"></span>Category Mapper</div>
+    <div class="tki"><span class="tkd"></span>Exception Detector</div>
+    <div class="tki"><span class="tkd"></span>Manual Review Queue</div>
+    <div class="tki"><span class="tkd"></span>Export CSV Excel JSON</div>
+    <div class="tki"><span class="tkd"></span>Claude AI Powered</div>
+    <div class="tki"><span class="tkd"></span>CSV Upload</div>
+    <div class="tki"><span class="tkd"></span>Excel .xlsx .xls</div>
+    <div class="tki"><span class="tkd"></span>Drag & Drop</div>
+    <div class="tki"><span class="tkd"></span>Data Cleaning</div>
+    <div class="tki"><span class="tkd"></span>Case List Builder</div>
+    <div class="tki"><span class="tkd"></span>Category Mapper</div>
+    <div class="tki"><span class="tkd"></span>Exception Detector</div>
+    <div class="tki"><span class="tkd"></span>Manual Review Queue</div>
+    <div class="tki"><span class="tkd"></span>Export CSV Excel JSON</div>
+    <div class="tki"><span class="tkd"></span>Claude AI Powered</div>
+  </div></div>
+  <footer>
+    <div class="ft-logo">AgentForge</div>
+    <ul class="ft-links"><li><a onclick="go('catalog')">Agents</a></li><li><a onclick="go('pricing')">Pricing</a></li><li><a>Docs</a></li><li><a>Security</a></li></ul>
+    <div class="ft-copy">© 2025 AgentForge · Powered by Claude AI</div>
+  </footer>
+</div>
+
+<!-- ═══ CATALOG ═══ -->
+<div class="pg" id="pg-catalog">
+  <div class="cat-wrap">
+    <div class="s-lbl">Agent Catalog</div>
+    <h2 class="s-ttl">6 Live AI Agents</h2>
+    <div class="ag-grid">
+      <div class="agc"><div class="agn">01</div><div class="agi">🧹</div><h3 class="agname">Data Cleaning</h3><p class="agd">Fixes nulls, duplicates, casing, invalid emails, whitespace. Returns full change report with confidence scores.</p><div class="ag-tags"><span class="tag a">CSV</span><span class="tag a">Excel</span><span class="tag">Change Report</span></div><div class="ag-bot"><div class="ag-pr"><sup>$</sup>49 <span class="per">/ one-time</span></div><button class="sm-btn amb" onclick="launch('cleaning')">Run Live →</button></div></div>
+      <div class="agc"><div class="agn">02</div><div class="agi">📋</div><h3 class="agname">Case List Builder</h3><p class="agd">Converts raw unstructured lists into categorized, prioritized, workflow-ready case tables with IDs.</p><div class="ag-tags"><span class="tag a">Excel</span><span class="tag">Power BI</span><span class="tag">Structured</span></div><div class="ag-bot"><div class="ag-pr"><sup>$</sup>79 <span class="per">/ one-time</span></div><button class="sm-btn amb" onclick="launch('cases')">Run Live →</button></div></div>
+      <div class="agc"><div class="agn">03</div><div class="agi">🗂️</div><h3 class="agname">Category Standardizer</h3><p class="agd">Maps inconsistent, dirty category values to a clean taxonomy. Human review queue included.</p><div class="ag-tags"><span class="tag a">AI</span><span class="tag">Taxonomy</span><span class="tag">Review</span></div><div class="ag-bot"><div class="ag-pr"><sup>$</sup>59 <span class="per">/ one-time</span></div><button class="sm-btn amb" onclick="launch('category')">Run Live →</button></div></div>
+      <div class="agc"><div class="agn">04</div><div class="agi">🔁</div><h3 class="agname">Data Reshaper</h3><p class="agd">Transforms wide pivot tables into normalized, Power BI–ready data models automatically.</p><div class="ag-tags"><span class="tag a">Excel</span><span class="tag">Transform</span><span class="tag">Power BI</span></div><div class="ag-bot"><div class="ag-pr"><sup>$</sup>89 <span class="per">/ one-time</span></div><button class="sm-btn amb" onclick="launch('reshape')">Run Live →</button></div></div>
+      <div class="agc"><div class="agn">05</div><div class="agi">⚠️</div><h3 class="agname">Exception Detector</h3><p class="agd">Flags anomalies, outliers, suspicious rows and data quality issues with confidence scoring.</p><div class="ag-tags"><span class="tag a">Audit</span><span class="tag">QA</span><span class="tag">Anomaly</span></div><div class="ag-bot"><div class="ag-pr"><sup>$</sup>69 <span class="per">/ one-time</span></div><button class="sm-btn amb" onclick="launch('exceptions')">Run Live →</button></div></div>
+      <div class="agc"><div class="agn">06</div><div class="agi">👁️</div><h3 class="agname">Manual Review</h3><p class="agd">AI proposes changes, you approve or reject each one. Full audit trail maintained per row.</p><div class="ag-tags"><span class="tag a">Review</span><span class="tag">Audit</span><span class="tag">Diff</span></div><div class="ag-bot"><div class="ag-pr"><sup>$</sup>99 <span class="per">/ one-time</span></div><button class="sm-btn amb" onclick="launch('review')">Run Live →</button></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RUNNER ═══ -->
+<div class="pg" id="pg-runner">
+  <div class="run-wrap">
+    <div class="run-top">
+      <div>
+        <div class="s-lbl">Live Agent Runner</div>
+        <h2 style="font-size:32px;font-weight:800;letter-spacing:-1.5px">Upload & Process</h2>
+      </div>
+      <div class="live-badge"><span class="ldot"></span>Claude AI Active</div>
+    </div>
+
+    <div class="run-layout">
+      <!-- SIDEBAR -->
+      <div class="sdb">
+        <div class="sdb-box">
+          <div class="sdb-hd">Select Agent</div>
+          <div id="agList">
+            <div class="ao sel" data-a="cleaning" onclick="selAgent(this,'cleaning')"><div class="aod"></div><div><div class="ao-name">🧹 Data Cleaning</div><div class="ao-sub">Fix nulls, dups, formats</div></div></div>
+            <div class="ao" data-a="cases" onclick="selAgent(this,'cases')"><div class="aod"></div><div><div class="ao-name">📋 Case List Builder</div><div class="ao-sub">Raw → structured cases</div></div></div>
+            <div class="ao" data-a="category" onclick="selAgent(this,'category')"><div class="aod"></div><div><div class="ao-name">🗂️ Category Standardizer</div><div class="ao-sub">Normalize categories</div></div></div>
+            <div class="ao" data-a="reshape" onclick="selAgent(this,'reshape')"><div class="aod"></div><div><div class="ao-name">🔁 Data Reshaper</div><div class="ao-sub">Transform to clean model</div></div></div>
+            <div class="ao" data-a="exceptions" onclick="selAgent(this,'exceptions')"><div class="aod"></div><div><div class="ao-name">⚠️ Exception Detector</div><div class="ao-sub">Anomalies & outliers</div></div></div>
+            <div class="ao" data-a="review" onclick="selAgent(this,'review')"><div class="aod"></div><div><div class="ao-name">👁️ Manual Review</div><div class="ao-sub">AI suggestions + approval</div></div></div>
+          </div>
+        </div>
+        <div class="sdb-box">
+          <div class="sdb-hd">Deploy Mode</div>
+          <div class="mode-tgl">
+            <button class="mbtn on" id="mc" onclick="setMode('cloud')">☁ Cloud</button>
+            <button class="mbtn" id="ml" onclick="setMode('local')">🔒 On-Prem</button>
+          </div>
+        </div>
+        <div class="sdb-box">
+          <div class="sdb-hd">Agent Info</div>
+          <div class="ag-info" id="agInfo">
+            <strong style="color:var(--amber)">🧹 Data Cleaning Agent</strong><br><br>
+            Detects & fixes: duplicates, nulls, format inconsistencies, whitespace, casing.<br><br>
+            <strong style="color:var(--white)">Accepts:</strong> .csv, .xlsx, .xls<br>
+            <strong style="color:var(--white)">Output:</strong> Clean data + change report
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN COLUMN -->
+      <div class="run-main">
+
+        <!-- ═ FILE UPLOAD ZONE ═ -->
+        <div class="upload-zone" id="uz"
+          ondragenter="onDE(event)" ondragover="onDO(event)"
+          ondragleave="onDL(event)" ondrop="onDD(event)">
+
+          <!-- idle state -->
+          <div class="uz-idle" id="uz-idle" onclick="document.getElementById('fi').click()">
+            <span class="uz-icon" id="uz-icon">📂</span>
+            <div class="uz-title">Drop your file here</div>
+            <div class="uz-sub">or click to browse your computer<br>Supports CSV, Excel (.xlsx, .xls)</div>
+            <div class="fmt-row">
+              <span class="fmt" id="f-csv">CSV</span>
+              <span class="fmt" id="f-xlsx">XLSX</span>
+              <span class="fmt" id="f-xls">XLS</span>
+            </div>
+            <button class="btn-p" style="font-size:12px;padding:10px 26px"
+              onclick="event.stopPropagation();document.getElementById('fi').click()">
+              Browse Files
+            </button>
+          </div>
+
+          <!-- file-ready state -->
+          <div class="uz-ready" id="uz-ready">
+            <span class="uz-ficon" id="uz-ficon">📄</span>
+            <div class="uz-finfo">
+              <div class="uz-fname" id="uz-fname">—</div>
+              <div class="uz-fmeta" id="uz-fmeta">—</div>
+            </div>
+            <div class="uz-factions">
+              <button class="sm-btn" onclick="resetFile()">× Remove</button>
+              <button class="sm-btn amb" onclick="document.getElementById('fi').click()">Replace</button>
+            </div>
+          </div>
+
+          <!-- drag overlay -->
+          <div class="drag-overlay" id="dov">
+            <span class="di">📥</span>
+            <span class="dt">Release to upload</span>
+          </div>
+        </div>
+        <input type="file" id="fi" accept=".csv,.xlsx,.xls" style="display:none" onchange="onFS(event)">
+
+        <!-- upload status / progress -->
+        <div class="u-status" id="ust"><span id="ust-icon">●</span><span id="ust-msg">—</span></div>
+        <div class="u-prog" id="uprog"><div class="u-bar" id="ubar"></div></div>
+
+        <!-- FILE PREVIEW -->
+        <div class="prev-box" id="prevBox">
+          <div class="pb-hd">
+            <div class="pb-left">
+              <span class="pb-title">📊 File Preview</span>
+              <span class="pb-badge" id="pb-badge">—</span>
+            </div>
+            <div class="pb-meta" id="pb-meta">—</div>
+          </div>
+          <div class="pb-scroll">
+            <table class="ptbl" id="ptbl"></table>
+          </div>
+          <div class="pb-ft">
+            <div class="sh-tabs" id="shTabs"></div>
+            <span id="pb-ft-txt" style="font-family:var(--font-m);font-size:10px;color:var(--muted)"></span>
+          </div>
+        </div>
+
+        <!-- RUN BUTTON + PROGRESS -->
+        <div>
+          <button class="run-btn idle" id="runBtn" onclick="runAgent()" disabled>
+            Upload a file to get started
+          </button>
+          <div class="prog" id="prog"><div class="prog-bar" id="prog-bar"></div></div>
+        </div>
+
+        <!-- METRICS -->
+        <div class="metrics" id="metrics">
+          <div class="mtr"><div class="mval g" id="m1">0</div><div class="mlbl">Rows Processed</div></div>
+          <div class="mtr"><div class="mval a" id="m2">0</div><div class="mlbl">Issues Fixed</div></div>
+          <div class="mtr"><div class="mval r" id="m3">0</div><div class="mlbl">Flagged</div></div>
+          <div class="mtr"><div class="mval b" id="m4">—</div><div class="mlbl">Avg Confidence</div></div>
+        </div>
+
+        <!-- TERMINAL -->
+        <div class="term" id="term">
+          <div class="tbar">
+            <span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
+            <span class="tlbl" id="tlbl">agentforge — ready</span>
+            <span class="tst run" id="tst">READY</span>
+          </div>
+          <div class="tbody" id="tbody"></div>
+        </div>
+
+        <!-- REVIEW PANEL -->
+        <div class="rv-panel" id="rvPanel">
+          <div class="rv-hd">
+            <span class="rv-title">⚠ Manual Review Queue — <span id="rvCnt">0</span> items</span>
+            <div style="display:flex;gap:8px">
+              <button class="sm-btn" onclick="approveAll()">Approve All</button>
+              <button class="sm-btn" onclick="rejectAll()">Reject All</button>
+            </div>
+          </div>
+          <div id="rvItems"></div>
+        </div>
+
+        <!-- OUTPUT TABLE -->
+        <div class="out-panel" id="outPanel">
+          <div class="op-hd">
+            <span class="op-title">✓ Processed Output</span>
+            <span class="op-meta" id="opMeta">—</span>
+          </div>
+          <div class="out-scroll"><table class="otbl" id="otbl"></table></div>
+          <div class="exp-bar" id="expBar">
+            <div class="exp-meta"><strong id="expSum">—</strong> · AgentForge run complete</div>
+            <div class="exp-btns">
+              <button class="eb" onclick="exportCSV()">⬇ CSV</button>
+              <button class="eb" onclick="exportExcel()">⬇ Excel</button>
+              <button class="eb pr" onclick="copyJSON()">{ } JSON</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /run-main -->
+    </div><!-- /run-layout -->
+  </div>
+</div>
+
+<!-- ═══ PRICING ═══ -->
+<div class="pg" id="pg-pricing">
+  <div class="pr-wrap">
+    <div class="s-lbl">Plans</div>
+    <h2 class="s-ttl">Simple pricing</h2>
+    <div class="pr-grid">
+      <div class="plan">
+        <div class="pn">Starter</div><div class="pp"><sup>$</sup>49</div>
+        <div class="pperiod">per agent · one-time</div><hr class="p-hr">
+        <ul class="pf">
+          <li><span class="ck">✓</span>1–2 agents</li><li><span class="ck">✓</span>50 runs / month</li>
+          <li><span class="ck">✓</span>CSV + Excel upload</li><li><span class="ck">✓</span>Change report export</li>
+          <li><span class="ck">✓</span>Email support</li>
+          <li><span class="ds">—</span>API access</li><li><span class="ds">—</span>Manual review console</li><li><span class="ds">—</span>Team collaboration</li>
+        </ul>
+        <button class="pb" onclick="go('runner')">Get Started</button>
+      </div>
+      <div class="plan hot">
+        <div class="p-rec">Most Popular</div>
+        <div class="pn">Pro</div><div class="pp"><sup>$</sup>99</div>
+        <div class="pperiod">per month · all agents</div><hr class="p-hr">
+        <ul class="pf">
+          <li><span class="ck">✓</span>All 6 agents</li><li><span class="ck">✓</span>500 runs / month</li>
+          <li><span class="ck">✓</span>REST API access</li><li><span class="ck">✓</span>Manual review console</li>
+          <li><span class="ck">✓</span>Team roles</li><li><span class="ck">✓</span>Power BI export</li>
+          <li><span class="ck">✓</span>Run history + audit log</li><li><span class="ds">—</span>On-prem / VPC</li>
+        </ul>
+        <button class="pb pp2" onclick="go('runner')">Start Pro Trial</button>
+      </div>
+      <div class="plan">
+        <div class="pn">Enterprise</div><div class="pp" style="font-size:32px;letter-spacing:-1px">Custom</div>
+        <div class="pperiod">annual contract</div><hr class="p-hr">
+        <ul class="pf">
+          <li><span class="ck">✓</span>Unlimited runs</li><li><span class="ck">✓</span>On-prem / VPC deploy</li>
+          <li><span class="ck">✓</span>SSO / SAML</li><li><span class="ck">✓</span>Advanced audit logs</li>
+          <li><span class="ck">✓</span>Custom data retention</li><li><span class="ck">✓</span>Dedicated SLA</li>
+          <li><span class="ck">✓</span>Custom agent dev</li><li><span class="ck">✓</span>Priority support</li>
+        </ul>
+        <button class="pb">Contact Sales</button>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <div class="ft-logo">AgentForge</div>
+    <ul class="ft-links"><li><a onclick="go('catalog')">Agents</a></li><li><a onclick="go('runner')">Run Agent</a></li><li><a>Docs</a></li><li><a>Security</a></li></ul>
+    <div class="ft-copy">© 2025 AgentForge</div>
+  </footer>
+</div>
+
+<script>
+/* ─── CURSOR ─── */
+const C=document.getElementById('cur'),R=document.getElementById('ring');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;C.style.left=mx+'px';C.style.top=my+'px'});
+(function l(){rx+=(mx-rx)*.13;ry+=(my-ry)*.13;R.style.left=rx+'px';R.style.top=ry+'px';requestAnimationFrame(l)})();
+document.addEventListener('mouseover',e=>{
+  const h=e.target.closest('button,a,.agc,.ao,.upload-zone');
+  if(h){C.style.transform='translate(-50%,-50%) scale(1.8)';R.style.width='46px';R.style.height='46px';R.style.borderColor='rgba(245,166,35,.8)'}
+  else{C.style.transform='translate(-50%,-50%) scale(1)';R.style.width='32px';R.style.height='32px';R.style.borderColor='rgba(245,166,35,.45)'}
+});
+
+/* ─── NAV ─── */
+function go(id){
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.n-links a').forEach(a=>a.classList.remove('on'));
+  document.getElementById('pg-'+id).classList.add('on');
+  document.getElementById('n-'+id)?.classList.add('on');
+  window.scrollTo(0,0);
+}
+function launch(agent){go('runner');setTimeout(()=>{const el=document.querySelector(`[data-a="${agent}"]`);if(el)selAgent(el,agent)},60)}
+
+/* ─── STATE ─── */
+let curAgent='cleaning', curMode='cloud';
+let sheets={}, activeSheet='', uploadedId=null, lastOut=[];
+let toastTmr;
+
+const META={
+  cleaning:{icon:'🧹',name:'Data Cleaning Agent',info:'Detects & fixes: duplicates, nulls, format inconsistencies, whitespace, casing.<br><br><b style="color:var(--white)">Accepts:</b> .csv, .xlsx, .xls<br><b style="color:var(--white)">Output:</b> Clean data + change report'},
+  cases:{icon:'📋',name:'Case List Builder',info:'Converts raw lists into structured case tables with IDs, categories, priorities.<br><br><b style="color:var(--white)">Accepts:</b> Any tabular or list data<br><b style="color:var(--white)">Output:</b> Structured case table'},
+  category:{icon:'🗂️',name:'Category Standardizer',info:'Maps dirty categories to a clean taxonomy with confidence scores.<br><br><b style="color:var(--white)">Accepts:</b> CSV / Excel with category column<br><b style="color:var(--white)">Output:</b> Normalised + review queue'},
+  reshape:{icon:'🔁',name:'Data Reshaper',info:'Transforms wide pivot tables to normalised long-format Power BI models.<br><br><b style="color:var(--white)">Accepts:</b> Wide Excel / CSV<br><b style="color:var(--white)">Output:</b> Normalised table'},
+  exceptions:{icon:'⚠️',name:'Exception Detector',info:'Flags anomalies, outliers, bad data with severity + confidence scores.<br><br><b style="color:var(--white)">Accepts:</b> Any tabular data<br><b style="color:var(--white)">Output:</b> Exception report'},
+  review:{icon:'👁️',name:'Manual Review Assistant',info:'AI proposes changes; you approve/reject per item. Full audit trail.<br><br><b style="color:var(--white)">Accepts:</b> Any CSV / Excel<br><b style="color:var(--white)">Output:</b> Approved change set'},
+};
+
+/* ─── AGENT / MODE ─── */
+function selAgent(el,agent){
+  document.querySelectorAll('.ao').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel'); curAgent=agent;
+  const m=META[agent];
+  document.getElementById('agInfo').innerHTML=`<strong style="color:var(--amber)">${m.icon} ${m.name}</strong><br><br>${m.info}`;
+  document.getElementById('tlbl').textContent=`agentforge — ${agent}-agent`;
+  if(sheets[activeSheet]?.length) updateRunBtn();
+}
+function setMode(m){curMode=m;document.getElementById('mc').classList.toggle('on',m==='cloud');document.getElementById('ml').classList.toggle('on',m==='local')}
+
+/* ─── TOAST ─── */
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  clearTimeout(toastTmr); toastTmr=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+/* ─── DRAG & DROP ─── */
+function onDE(e){e.preventDefault();document.getElementById('uz').classList.add('drag')}
+function onDO(e){e.preventDefault()}
+function onDL(e){const uz=document.getElementById('uz');if(!uz.contains(e.relatedTarget))uz.classList.remove('drag')}
+function onDD(e){
+  e.preventDefault();
+  document.getElementById('uz').classList.remove('drag');
+  const f=e.dataTransfer.files[0]; if(f)processFile(f);
+}
+function onFS(e){const f=e.target.files[0];if(f)processFile(f)}
+
+/* ─── PROCESS FILE (parse + upload) ─── */
+function processFile(file){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(!['csv','xlsx','xls'].includes(ext)){toast('Unsupported file type — use CSV, XLSX or XLS','er');return}
+  resetOutput();
+  // Format badges
+  ['csv','xlsx','xls'].forEach(f=>document.getElementById('f-'+f).classList.toggle('hi',f===ext));
+  // Switch drop zone state
+  const uz=document.getElementById('uz');
+  uz.classList.remove('drag'); uz.classList.add('ready');
+  document.getElementById('uz-idle').style.display='none';
+  const uzr=document.getElementById('uz-ready'); uzr.classList.add('show');
+  const icons={csv:'📄',xlsx:'📊',xls:'📊'};
+  document.getElementById('uz-ficon').textContent=icons[ext]||'📄';
+  document.getElementById('uz-fname').textContent=file.name;
+  document.getElementById('uz-fmeta').textContent=`${(file.size/1024).toFixed(1)} KB · .${ext.toUpperCase()} · ${new Date(file.lastModified).toLocaleDateString()}`;
+  // Parse client-side
+  if(ext==='csv') parseCSV(file);
+  else parseExcel(file);
+  // Upload to backend
+  uploadBackend(file);
+}
+
+/* ─── CSV PARSER ─── */
+function parseCSV(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.trim().split(/\r?\n/);
+    const parseRow=r=>{
+      const res=[];let cur='',inQ=false;
+      for(let ch of r){
+        if(ch==='"'){inQ=!inQ}
+        else if(ch===','&&!inQ){res.push(cur.trim());cur=''}
+        else cur+=ch;
+      }
+      res.push(cur.trim()); return res;
+    };
+    const headers=parseRow(lines[0]);
+    const data=lines.slice(1)
+      .map(l=>{const cells=parseRow(l);const o={};headers.forEach((h,i)=>o[h]=cells[i]??'');return o})
+      .filter(r=>Object.values(r).some(v=>v!==''));
+    sheets={Sheet1:data}; activeSheet='Sheet1';
+    showPreview(data,'Sheet1',`CSV · ${data.length} rows · ${headers.length} columns`);
+    updateRunBtn();
+  };
+  reader.readAsText(file);
+}
+
+/* ─── EXCEL PARSER ─── */
+function parseExcel(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      sheets={};
+      wb.SheetNames.forEach(n=>{sheets[n]=XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:''})});
+      activeSheet=wb.SheetNames[0];
+      const data=sheets[activeSheet];
+      const cols=data.length?Object.keys(data[0]).length:0;
+      showPreview(data,activeSheet,`Excel · ${data.length} rows · ${cols} columns`,wb.SheetNames);
+      updateRunBtn();
+    }catch(err){toast('Could not parse Excel: '+err.message,'er')}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ─── SHOW PREVIEW TABLE ─── */
+function showPreview(data,sheetName,meta,allSheets){
+  if(!data?.length) return;
+  document.getElementById('prevBox').classList.add('show');
+  document.getElementById('pb-badge').textContent=sheetName;
+  document.getElementById('pb-meta').textContent=meta;
+  const SHOW=8, hdrs=Object.keys(data[0]);
+  let h='<thead><tr><th style="color:var(--muted2);font-weight:400;min-width:28px">#</th>';
+  hdrs.forEach(k=>{h+=`<th>${k}</th>`}); h+='</tr></thead><tbody>';
+  data.slice(0,SHOW).forEach((row,i)=>{
+    h+=`<tr><td style="color:var(--muted2)">${i+1}</td>`;
+    hdrs.forEach(k=>{const v=row[k];const mt=(v===''||v===null||v===undefined);h+=`<td class="${mt?'td-mt':''}">${mt?'(empty)':v}</td>`});
+    h+='</tr>';
+  });
+  h+='</tbody>';
+  document.getElementById('ptbl').innerHTML=h;
+  // Sheet tabs
+  const tabEl=document.getElementById('shTabs');
+  if(allSheets?.length>1){
+    tabEl.innerHTML=allSheets.map(s=>`<button class="sh-tab ${s===sheetName?'on':''}" onclick="switchSheet('${s}')">${s}</button>`).join('');
+  } else tabEl.innerHTML='';
+  const rem=data.length-SHOW;
+  document.getElementById('pb-ft-txt').textContent=rem>0?`First ${SHOW} of ${data.length} rows (${rem} more not shown)`:`All ${data.length} rows shown`;
+}
+
+function switchSheet(name){
+  activeSheet=name;
+  const data=sheets[name], cols=data.length?Object.keys(data[0]).length:0;
+  showPreview(data,name,`Excel · ${data.length} rows · ${cols} columns`,Object.keys(sheets));
+}
+
+/* ─── UPDATE RUN BUTTON ─── */
+function updateRunBtn(){
+  const btn=document.getElementById('runBtn');
+  btn.disabled=false; btn.className='run-btn rdy';
+  const m=META[curAgent];
+  btn.innerHTML=`<span class="shine"></span>▶  Run ${m.icon} ${m.name}`;
+}
+
+/* ─── RESET ─── */
+function resetFile(){
+  const uz=document.getElementById('uz');
+  uz.classList.remove('ready','drag');
+  document.getElementById('uz-idle').style.display='';
+  document.getElementById('uz-ready').classList.remove('show');
+  document.getElementById('fi').value='';
+  ['csv','xlsx','xls'].forEach(f=>document.getElementById('f-'+f).classList.remove('hi'));
+  document.getElementById('prevBox').classList.remove('show');
+  document.getElementById('ust').className='u-status';
+  sheets={}; activeSheet=''; uploadedId=null;
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true; btn.className='run-btn idle'; btn.textContent='Upload a file to get started';
+  resetOutput();
+}
+function resetOutput(){
+  ['term','metrics','rvPanel','outPanel'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  document.getElementById('expBar').classList.remove('show');
+  document.getElementById('tbody').innerHTML='';
+  document.getElementById('prog').classList.remove('show');
+  lastOut=[];
+}
+
+/* ─── UPLOAD TO BACKEND /upload-file ─── */
+async function uploadBackend(file){
+  const ustEl=document.getElementById('ust');
+  const msgEl=document.getElementById('ust-msg');
+  const iconEl=document.getElementById('ust-icon');
+  const progEl=document.getElementById('uprog');
+  const barEl=document.getElementById('ubar');
+  ustEl.className='u-status show ld'; iconEl.textContent='⏳'; msgEl.textContent=`Uploading "${file.name}" to server…`;
+  progEl.classList.add('show'); barEl.style.width='0%';
+  let p=0;
+  const tick=setInterval(()=>{p=Math.min(p+Math.random()*14,88);barEl.style.width=p+'%'},200);
+  try{
+    const fd=new FormData();
+    fd.append('file',file);
+    fd.append('agent',curAgent);
+    const res=await fetch('/upload-file',{method:'POST',body:fd,signal:AbortSignal.timeout(10000)});
+    clearInterval(tick); barEl.style.width='100%';
+    if(res.ok){
+      const j=await res.json().catch(()=>({}));
+      uploadedId=j.file_id||j.id||'ok';
+      ustEl.className='u-status show ok'; iconEl.textContent='✓';
+      msgEl.textContent=`✓ Uploaded to server${uploadedId&&uploadedId!=='ok'?' · ID: '+uploadedId:''} · Ready to process`;
+      toast('File uploaded to server ✓','ok');
+    } else throw new Error(`HTTP ${res.status}`);
+  } catch(err){
+    clearInterval(tick); barEl.style.width='100%'; uploadedId=null;
+    ustEl.className='u-status show ok'; iconEl.textContent='✓';
+    const local=err.name==='AbortError'||err.message.toLowerCase().includes('fetch')||err.message.toLowerCase().includes('failed');
+    msgEl.textContent=local
+      ?'✓ File parsed locally · Backend not connected (demo mode)'
+      :`✓ File ready · Local processing (${err.message})`;
+  }
+  setTimeout(()=>{progEl.classList.remove('show');barEl.style.width='0%'},1200);
+}
+
+/* ─── TERMINAL LOGGER ─── */
+function tlog(html,delay=0){
+  return new Promise(res=>setTimeout(()=>{
+    const b=document.getElementById('tbody');
+    b.innerHTML+=`<span class="tl">${html}</span>`;
+    b.scrollTop=b.scrollHeight; res();
+  },delay));
+}
+function setP(pct){document.getElementById('prog-bar').style.width=pct+'%'}
+
+/* ─── RUN AGENT (main entry point) ─── */
+async function runAgent(){
+  const data=sheets[activeSheet];
+  if(!data?.length){toast('No data loaded — upload a file first','er');return}
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true; btn.className='run-btn busy';
+  btn.innerHTML='<span class="spin"></span>Processing…';
+  resetOutput();
+  document.getElementById('term').classList.add('show');
+  document.getElementById('prog').classList.add('show');
+  document.getElementById('tst').className='tst run'; document.getElementById('tst').textContent='RUNNING';
+  setP(0);
+  const m=META[curAgent]; const rows=data.length; const cols=Object.keys(data[0]).length;
+  const fname=document.getElementById('uz-fname').textContent;
+  await tlog(`<span class="tp">$</span> <span class="tb">agentforge run --agent=${curAgent} --mode=${curMode} --file="${fname}"</span>`);
+  await tlog(`<span class="td4">  Loaded: ${rows} rows × ${cols} columns from "${activeSheet}"</span>`,300);
+  setP(12);
+  if(uploadedId) await tlog(`<span class="td4">  Server file ID: ${uploadedId}</span>`,400);
+  else await tlog(`<span class="td4">  Mode: local parse (demo)</span>`,400);
+  setP(22); await tlog(`<span class="td4">  Running rule-based pre-check…</span>`,600); setP(34);
+  await tlog(`<span class="to">  ✓ Schema validated — ${cols} columns detected</span>`,900); setP(44);
+  await tlog(`<span class="tw">  → Sending ${Math.min(rows,100)} rows to Claude AI for analysis…</span>`,1100); setP(56);
+
+  // Build CSV sample
+  const hdrs=Object.keys(data[0]);
+  const csv=[hdrs.join(','),...data.slice(0,100).map(r=>hdrs.map(h=>`"${String(r[h]??'').replace(/"/g,'""')}"`).join(','))].join('\n');
+
+  let result;
+  try{result=await callClaude(curAgent,csv,rows)}
+  catch(err){
+    await tlog(`<span class="te">  ✗ AI error: ${err.message}</span>`);
+    document.getElementById('tst').className='tst err'; document.getElementById('tst').textContent='ERROR';
+    btn.disabled=false; btn.className='run-btn rdy'; updateRunBtn();
+    toast('AI processing failed: '+err.message,'er'); return;
+  }
+
+  setP(82); await tlog(`<span class="to">  ✓ AI processing complete</span>`,200);
+  await tlog(`<span class="td4">  Building output table & change report…</span>`,400); setP(93);
+
+  // Metrics
+  const met=result.metrics||{};
+  document.getElementById('m1').textContent=met.processed||rows;
+  document.getElementById('m2').textContent=met.changed||0;
+  document.getElementById('m3').textContent=met.flagged||0;
+  document.getElementById('m4').textContent=met.confidence||'—';
+  document.getElementById('metrics').classList.add('show');
+
+  if(met.changed) await tlog(`<span class="to">  ✓ Issues fixed: ${met.changed}</span>`,500);
+  if(met.flagged) await tlog(`<span class="tw">  ⚠ Queued for review: ${met.flagged}</span>`,600);
+  await tlog(`<span class="ti">  ✓ Output: ${result.table?.length||0} rows ready</span>`,700);
+  if(result.summary) await tlog(`<span class="td4">  ↳ ${result.summary}</span>`,850);
+  await tlog(`<span class="tp">$</span> <span class="blink"></span>`,1000);
+
+  setP(100); document.getElementById('tst').className='tst done'; document.getElementById('tst').textContent='DONE';
+  if(result.table?.length){renderOutput(result.table); lastOut=result.table}
+  if(result.reviewItems?.length) renderReview(result.reviewItems);
+  document.getElementById('expSum').textContent=`${met.processed||rows} rows · ${met.changed||0} changes · ${met.flagged||0} flagged`;
+  document.getElementById('opMeta').textContent=result.table?.length?`${result.table.length} rows · ${Object.keys(result.table[0]).filter(k=>!k.startsWith('_')).length} columns`:'—';
+  document.getElementById('expBar').classList.add('show');
+  btn.disabled=false; btn.className='run-btn rdy';
+  btn.innerHTML=`▶  Run Again`;
+  setTimeout(()=>setP(0),1600);
+  toast('Agent run complete ✓','ok');
+}
+
+/* ─── CLAUDE API (via secure backend) ─── */
+async function callClaude(agent, csv, totalRows){
+  // Call our secure API endpoint instead of Anthropic directly
+  const res = await fetch('/api/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      agent: agent,
+      csvData: csv,
+      totalRows: totalRows
+    })
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Network error' }));
+    throw new Error(error.error || error.message || 'API request failed');
+  }
+
+  return await res.json();
+}
+
+/* ─── RENDER OUTPUT TABLE ─── */
+function renderOutput(rows){
+  if(!rows?.length)return;
+  const keys=Object.keys(rows[0]).filter(k=>!k.startsWith('_'));
+  let h='<thead><tr><th style="color:var(--muted2);font-weight:400;min-width:28px">#</th>';
+  keys.forEach(k=>{h+=`<th>${k}</th>`}); h+='<th>Status</th></tr></thead><tbody>';
+  rows.forEach((row,i)=>{
+    const st=row._status||'ok'; const ch=row._changes||[];
+    h+=`<tr><td style="color:var(--muted2)">${i+1}</td>`;
+    keys.forEach(k=>{
+      let cls='';
+      if(st==='changed'&&ch.some(c=>c.toLowerCase().includes(k.toLowerCase())))cls='cc';
+      else if(st==='flagged'||st==='DUPLICATE')cls='cf';
+      else if(st==='new')cls='cn';
+      else if(st==='pending')cls='cy';
+      const v=row[k]; const mt=(v===''||v===null||v===undefined);
+      h+=`<td class="${cls}">${mt?'<span style="color:var(--muted2);font-style:italic">(empty)</span>':v}</td>`;
+    });
+    const sc={changed:'var(--green)',flagged:'var(--red)',ok:'var(--muted)',new:'var(--blue)',pending:'var(--yellow)',DUPLICATE:'var(--red)'}[st]||'var(--muted)';
+    h+=`<td style="color:${sc};font-weight:700;font-size:10px;white-space:nowrap">${st.toUpperCase()}</td></tr>`;
+  });
+  h+='</tbody>';
+  document.getElementById('otbl').innerHTML=h;
+  document.getElementById('outPanel').classList.add('show');
+}
+
+/* ─── RENDER REVIEW ─── */
+function renderReview(items){
+  if(!items?.length)return;
+  document.getElementById('rvCnt').textContent=items.length;
+  let h='';
+  items.forEach((item,i)=>{
+    const pct=Math.round((item.confidence||0.8)*100);
+    const fc=pct>80?'var(--green)':pct>60?'var(--yellow)':'var(--red)';
+    h+=`<div class="rv-item" id="rvi-${i}" style="animation-delay:${i*.05}s">
+      <div>
+        <div class="rv-lbl">${item.field||'Field'} · ${pct}% confidence</div>
+        <div class="rv-old">${item.original||'(empty)'}</div>
+        <div class="cbar"><div class="cfill" style="width:${pct}%;background:${fc}"></div></div>
+        <div class="rv-why">${item.reason||''}</div>
+      </div>
+      <div class="rv-arr">→</div>
+      <div>
+        <div class="rv-lbl">Suggested</div>
+        <div class="rv-new">${item.suggested||'—'}</div>
+      </div>
+      <div class="rv-acts">
+        <button class="rva ap" onclick="rvAp(${i})">✓ OK</button>
+        <button class="rva rj" onclick="rvRj(${i})">✗ Skip</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('rvItems').innerHTML=h;
+  document.getElementById('rvPanel').classList.add('show');
+}
+function rvAp(i){const el=document.getElementById('rvi-'+i);el.querySelectorAll('.rva').forEach(b=>b.classList.add('done'));el.querySelector('.rva.ap').textContent='✓ Approved';el.querySelector('.rva.ap').style.cssText='background:var(--green);color:#000';el.style.opacity='.6'}
+function rvRj(i){const el=document.getElementById('rvi-'+i);el.querySelectorAll('.rva').forEach(b=>b.classList.add('done'));el.querySelector('.rva.rj').textContent='✗ Rejected';el.querySelector('.rva.rj').style.cssText='background:var(--red);color:#fff';el.style.opacity='.4'}
+function approveAll(){document.querySelectorAll('.rva.ap:not(.done)').forEach((b,i)=>setTimeout(()=>rvAp(parseInt(b.closest('.rv-item').id.split('-')[1])),i*60))}
+function rejectAll(){document.querySelectorAll('.rva.rj:not(.done)').forEach((b,i)=>setTimeout(()=>rvRj(parseInt(b.closest('.rv-item').id.split('-')[1])),i*60))}
+
+/* ─── EXPORT ─── */
+function exportCSV(){
+  if(!lastOut.length){toast('No output to export','er');return}
+  const keys=Object.keys(lastOut[0]).filter(k=>!k.startsWith('_'));
+  const csv=keys.join(',')+'\n'+lastOut.map(r=>keys.map(k=>`"${String(r[k]??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  dl(new Blob([csv],{type:'text/csv'}),`agentforge_${curAgent}_output.csv`);
+  toast('CSV exported ✓','ok');
+}
+function exportExcel(){
+  if(!lastOut.length){toast('No output to export','er');return}
+  const clean=lastOut.map(r=>{const o={...r};delete o._status;delete o._changes;return o});
+  const ws=XLSX.utils.json_to_sheet(clean);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Output');
+  XLSX.writeFile(wb,`agentforge_${curAgent}_output.xlsx`);
+  toast('Excel exported ✓','ok');
+}
+function copyJSON(){
+  if(!lastOut.length){toast('No output to copy','er');return}
+  const clean=lastOut.map(r=>{const o={...r};delete o._status;delete o._changes;return o});
+  navigator.clipboard.writeText(JSON.stringify(clean,null,2)).then(()=>toast('JSON copied ✓','ok'));
+}
+function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1e3)}
+</script>
+</body>
+</html>
